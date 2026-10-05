@@ -196,16 +196,36 @@ def shell_segments(command, with_operators=False):
     yield (words, '') if with_operators else words
 
 
+def active_heredoc_positions(line):
+    """Find << operators outside quotes, escapes and trailing shell comments."""
+    positions, quote, index = set(), None, 0
+    while index < len(line):
+        char = line[index]
+        if char == '\\' and quote != "'":
+            index += 2
+            continue
+        if quote:
+            if char == quote:
+                quote = None
+        elif char in "'\"":
+            quote = char
+        elif char == '#' and (index == 0 or line[index - 1] in ' \t;&|()'):
+            break
+        elif line.startswith('<<', index):
+            positions.add(index)
+            index += 1
+        index += 1
+    return positions
+
+
 def heredocs(command):
     """Separate common literal heredoc bodies from shell command lines."""
     lines, cleaned, bodies, index = command.splitlines(keepends=True), [], [], 0
     pattern = re.compile(r"<<(-?)\s*(?:'([^']+)'|\"([^\"]+)\"|([A-Za-z_]\w*))")
     while index < len(lines):
         line = lines[index]
-        matches = list(pattern.finditer(line))
-        # An operator inside a quoted argument is data. Only inspect operators
-        # whose preceding prefix has no open quote.
-        matches = [m for m in matches if line[:m.start()].count("'") % 2 == 0 and line[:m.start()].count('"') % 2 == 0]
+        positions = active_heredoc_positions(line)
+        matches = [m for m in pattern.finditer(line) if m.start() in positions]
         cleaned.append(line)
         index += 1
         for match in matches:

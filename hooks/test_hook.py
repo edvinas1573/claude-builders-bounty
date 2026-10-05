@@ -66,6 +66,8 @@ class PolicyTests(unittest.TestCase):
             "printf '%s\\n' 'DROP TABLE customers;'",
             "cat <<'EOF'\nrm -rf synthetic\nDELETE FROM customers\nEOF\n",
             "mysql <<SQL\nDELETE FROM customers WHERE id=1;\nSQL\n",
+            'echo hello # <<EOF',
+            "cat \"it's\" <<'EOF'\nrm -rf synthetic\nEOF\n",
         ]
         for command in commands:
             with self.subTest(command=command):
